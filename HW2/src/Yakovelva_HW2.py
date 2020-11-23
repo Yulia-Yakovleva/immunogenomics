@@ -1,9 +1,10 @@
 import time
 import pandas as pd
 import itertools
-from Bio import SeqIO
 import networkx as nx
 import matplotlib.pyplot as plt
+import seaborn as sns
+from Bio import SeqIO
 
 
 def get_seq_pairs(names):
@@ -17,9 +18,29 @@ def hamming_distance(seq1, seq2):
 
 df = pd.read_csv('/home/yulia/immunogenomics/HW2/results/analyzer_results/cdr_details.txt', sep='\t')
 df['cdr3_length'] = df['CDR3_end'] - df['CDR3_start'] + 1
+df['V_gene'] = [el.split('*')[0] for el in df['V_hit']]
+
+# G = nx.Graph()
+
+# without any optimization
+# print('without optimization')
+# start_time = time.time()
+# for name1, seq1 in zip(df['Read_name'], df['CDR3_nucls']):
+#     for name2, seq2 in zip(df['Read_name'], df['CDR3_nucls']):
+#         if name1 == name2:
+#             pass
+#         else:
+#             # 2b compute Hamming distances for pairs of computed CDR3s
+#             hm = hamming_distance(seq1, seq2) / len(seq1)
+#             if hm <= 0.2:
+#                 # 2c connect two sequences if similarity <= 0.2
+#                 G.add_edge(seq1, seq2)
+# print(f"Working time is {(time.time() - start_time)}")
 
 G = nx.Graph()
 
+# optimization by length and drop non-unique sequences
+print('with optimization')
 start_time = time.time()
 for length, sub_df in df.groupby('cdr3_length'):
     sub_df = sub_df.drop_duplicates(subset='CDR3_nucls').reset_index()
@@ -33,75 +54,59 @@ for length, sub_df in df.groupby('cdr3_length'):
                 # 2b compute Hamming distances for pairs of computed CDR3s
                 hm = hamming_distance(seq1, seq2) / length
                 if hm <= 0.2:
-                    # 2c connect two seqiences if similarity <= 0.2
+                    # 2c connect two sequences if similarity <= 0.2
                     G.add_edge(seq1, seq2)
                     # print(name1, name2, hm)
 print(f"Working time is {(time.time() - start_time)}")
 
 # 2d report connected components
 lineages = list(nx.connected_components(G))
+largest = max([len(el) for el in lineages])
 
+# 3 analyze the computed clonal lineages
 print(f"Number of clonal lineages is {len(lineages)}")
-print(f"Number of sequences in the larges lineage is {max([len(el) for el in lineages])}")
+print(f"Number of sequences in the larges lineage is {largest}")
 print(f"The number of clonal lineages presented by at least 10 sequences is {len([el for el in lineages if len(el) <= 10])}")
 
-        # print(i, seq1, length)
-        # for j in range(i+1, length):
-        #     print(sub_df['CDR3_nucls'][j])
+# 4 usage plot of the computed V genes
+v_hits = pd.DataFrame(columns=['Lineage', 'Gene'])
 
-        # print(i)
-        # print(sub_df['CDR3_nucls'][i+1])
-        # print(seq)
-    # break
-    # for i in range(length):
-    #     sub_df['CDR3_nucls'][i]
-    # for sequences in pairs:
-    #     print(p)
-    # for seq1, seq2 in pairs:
-    #     print(seq1, seq2)dfgdg
-    # print(pairs)
-    # break
+for num, lineage in enumerate(lineages):
+    for seq in lineage:
+        gene = df[df.CDR3_nucls == seq].drop_duplicates(subset='CDR3_nucls').V_gene.values[0]
+        v_hits = v_hits.append({'Lineage': f"lineage_{num}", 'Gene': gene}, ignore_index=True)
 
-    # for
+counts = {}
+for g in set(v_hits['Gene']):
+    counts[g] = len(set(v_hits[v_hits['Gene'] == g].Lineage))
 
-# nx.draw(G)
-# plt.show()
+counts = pd.DataFrame.from_dict(counts, orient='index').reset_index()
+counts = counts.rename(columns={"index": "Genes", 0: "Counts"}, errors="raise").sort_values(by='Counts', ascending=False)
 
+sns.set(style='darkgrid')
+sns.set_color_codes("pastel")
 
-
-
-# (2, 3, {'weight': 3.1415})
+sns.catplot(x='Genes', y='Counts', data=counts, palette="Set3", kind='bar', height=5, aspect=15/5)
+plt.xticks(rotation=90)
+plt.title('Usage plot of the computed V genes')
+plt.tight_layout()
+plt.savefig(f"/home/yulia/immunogenomics/HW2/results/countplot.png", format='png')
+plt.show()
 
 
-# def split_on_kmers(rec):
-#     k = round(len(rec) * 0.2) + 1
-#     return set(rec.seq[i: j] for i in range(len(rec.seq)) for j in range(i + 1, len(rec.seq) + 1) if len(rec.seq[i:j]) == k)
+# 5 sequences for logo
+with open('/home/yulia/immunogenomics/HW2/results/seqs_for_logo.fasta', 'w') as out_f:
+    for l in lineages:
+        if len(l) == largest:
+            reads_names = []
+            for num, seq in enumerate(l):
+                out_f.write(f">seq_{num}\n{seq}\n")
+# 6 extract names of VDJ sequences
+                for v, name in zip(df['CDR3_nucls'], df['Read_name']):
+                    if seq == v:
+                        reads_names.append(name)
 
-
-# combinations = get_seq_pairs(recs)
-
-# start_time = time.time()
-# print('Calculate with optimization...')
-# for pair in combinations:
-#     if len(pair[0]) == len(pair[1]):
-#         kmers1 = split_on_kmers(pair[0])
-#         kmers2 = split_on_kmers(pair[1])
-#         if len(kmers1.intersection(kmers2)) > 0:
-#             # hd = hamming_distance(pair)
-#             print(pair)
-# print('Done')
-# print(f"Working time is {(time.time() - start_time)}")
-
-# start_time = time.time()
-# print('Calculate without optimization...')
-# for pair in combinations:
-#     if len(pair[0]) == len(pair[1]):
-#         print(pair)
-#         # hd = hamming_distance(pair)
-# print('Done')
-# print(f"Working time is {(time.time() - start_time)}")
-#         print()
-# hd = hamming_distance(pair)
-# similarity = hd / len(pair[0])
-# if similarity <= 0.2:
-#     print(pair[0].id, pair[1].id, hd)
+with open('/home/yulia/immunogenomics/HW2/results/seqs_for_phylo.fasta', 'w') as out_f:
+    for rec in SeqIO.parse('/home/yulia/immunogenomics/HW2/results/analyzer_results/cleaned_sequences.fasta', 'fasta'):
+        if rec.id in set(reads_names):
+            SeqIO.write(rec, out_f, 'fasta')
