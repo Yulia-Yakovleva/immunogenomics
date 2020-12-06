@@ -49,20 +49,40 @@ anowa_rslt.to_csv(pth+'results/anova_rslt.tsv', sep='\t')
 ### 5
 
 df = df.set_index('SubjectID')
-# print(df)
 
-IGHV4_T199 = df[(df.Haplotype == '4') | (df.Haplotype == '2-4') | (df.Haplotype == '4-6')]
-IGHV4_T199 = IGHV4_T199.replace('4', 'T199').replace('2-4', 'T199').replace('4-6', 'T199')
+snps = []
 
-IGHV6_C148 = df[(df.Haplotype == '6') | (df.Haplotype == '2-6') | (df.Haplotype == '4-6')]
-IGHV6_C148 = IGHV6_C148.replace('6', 'C148').replace('2-6', 'C148').replace('4-6', 'C148')
+for h in df.Haplotype:
+    if h == '2' or h == '2-6' or h == '6':
+        snps.append('A')
+    elif h == '2-4' or h == '4-6':
+        snps.append('A/T')
+    elif h == '4':
+        snps.append('T')
 
-snps = pd.concat([IGHV4_T199, IGHV6_C148])
+snps = []
+
+for h in df.Haplotype:
+    if h == '2' or h == '2-4' or h == '4':
+        snps.append('T')
+    elif h == '2-6' or h == '4-6':
+        snps.append('T/C')
+    elif h == '6':
+        snps.append('C')
+
+df['SNP 199'] = snps
+df['SNP 148'] = snps
+
+# sns.set(style='darkgrid')
+# sns.boxplot(data=df, x=df['SNP 199'], y=df.Usage)
+# plt.title('The distribution of usages across SNP states')
+# plt.tight_layout()
+# plt.show()
+# plt.savefig(pth+'results/boxplot2.pdf', format='pdf')
 
 sns.set(style='darkgrid')
-sns.boxplot(data=snps, x=snps.Haplotype, y=snps.Usage)
+sns.boxplot(data=df, x=df['SNP 148'], y=df.Usage)
 plt.title('The distribution of usages across SNP states')
-plt.xlabel('SNPs')
 plt.tight_layout()
 # plt.show()
-plt.savefig(pth+'results/boxplot2.pdf', format='pdf')
+plt.savefig(pth+'results/boxplot3.pdf', format='pdf')
