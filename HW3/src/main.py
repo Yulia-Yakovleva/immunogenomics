@@ -46,7 +46,7 @@ anowa_rslt.to_csv(pth+'results/anova_rslt.tsv', sep='\t')
 # видим, что четвертый гаплотип отличается от всех
 # print(anowa_rslt < 0.05)
 
-### 5
+### 6
 
 df = df.set_index('SubjectID')
 
@@ -60,6 +60,8 @@ for h in df.Haplotype:
     elif h == '4':
         snps.append('T')
 
+df['SNP 199'] = snps
+
 snps = []
 
 for h in df.Haplotype:
@@ -70,19 +72,44 @@ for h in df.Haplotype:
     elif h == '6':
         snps.append('C')
 
-df['SNP 199'] = snps
 df['SNP 148'] = snps
 
 # sns.set(style='darkgrid')
 # sns.boxplot(data=df, x=df['SNP 199'], y=df.Usage)
 # plt.title('The distribution of usages across SNP states')
 # plt.tight_layout()
-# plt.show()
+# # plt.show()
 # plt.savefig(pth+'results/boxplot2.pdf', format='pdf')
 
-sns.set(style='darkgrid')
-sns.boxplot(data=df, x=df['SNP 148'], y=df.Usage)
-plt.title('The distribution of usages across SNP states')
-plt.tight_layout()
+
+# sns.set(style='darkgrid')
+# sns.boxplot(data=df, x=df['SNP 148'], y=df.Usage)
+# plt.title('The distribution of usages across SNP states')
+# plt.tight_layout()
 # plt.show()
-plt.savefig(pth+'results/boxplot3.pdf', format='pdf')
+# plt.savefig(pth+'results/boxplot3.pdf', format='pdf')
+
+anowa_rslt = pd.DataFrame()
+pairs = list(itertools.combinations(df['SNP 148'], 2))
+
+for p1, p2 in pairs:
+    F, p = stats.f_oneway(df[df['SNP 148'] == p1].Usage, df[df['SNP 148'] == p2].Usage)
+    anowa_rslt.loc[f"{p1}", f"{p2}"] = p
+    anowa_rslt.loc[f"{p2}", f"{p1}"] = p
+
+anowa_rslt.fillna(1, inplace=True)
+print(anowa_rslt)
+anowa_rslt.to_csv(pth+'results/anova_rslt2.tsv', sep='\t')
+
+anowa_rslt = pd.DataFrame()
+pairs = list(itertools.combinations(df['SNP 199'], 2))
+
+for p1, p2 in pairs:
+    F, p = stats.f_oneway(df[df['SNP 199'] == p1].Usage, df[df['SNP 199'] == p2].Usage)
+    anowa_rslt.loc[f"{p1}", f"{p2}"] = p
+    anowa_rslt.loc[f"{p2}", f"{p1}"] = p
+
+anowa_rslt.fillna(1, inplace=True)
+print(anowa_rslt)
+print(anowa_rslt < 0.05)
+anowa_rslt.to_csv(pth+'results/anova_rslt3.tsv', sep='\t')
